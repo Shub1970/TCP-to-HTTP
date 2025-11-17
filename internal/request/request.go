@@ -3,6 +3,7 @@ package request
 import (
 	"bytes"
 	"fmt"
+	"httpfromtcp/internal/headers"
 	"io"
 )
 
@@ -10,6 +11,7 @@ const (
 	CRLF                       = "\r\n"
 	PROTOCOL_ERROR             = "Protocol error"
 	INITIALIZED    parserState = "INITIALIZED"
+	HEADERS        parserState = "HEADERS"
 	DONE           parserState = "DONE"
 )
 
@@ -23,7 +25,8 @@ type RequestLine struct {
 
 type Request struct {
 	RequestLine RequestLine
-	state       parserState
+	Headers     headers.Headers
+	State       parserState
 }
 
 func checkUppercase(s string) bool {
@@ -72,8 +75,9 @@ func parseRequestLine(requestLine []byte) (*RequestLine, int, error) {
 
 func (r *Request) parse(data []byte) (int, error) {
 	read := 0
+outer:
 	for {
-		switch r.state {
+		switch r.State {
 		case INITIALIZED:
 			requestLine, readLen, err := parseRequestLine(data[read:])
 			if err != nil {
@@ -83,24 +87,38 @@ func (r *Request) parse(data []byte) (int, error) {
 				return 0, nil
 			}
 			r.RequestLine = *requestLine
-			r.state = DONE
+			r.State = HEADERS
 			read += readLen
+			break outer
+		case HEADERS:
+			headerLen, done, err := r.Headers.Parse(data[read:])
+			fmt.Printf("header reading : %s\n", string(data[read:]))
+			if err != nil {
+				return 0, err
+			}
+			if done {
+				r.State = DONE
+			}
+			read += headerLen
+			break outer
 		case DONE:
 			return read, nil
 		default:
 			return 0, fmt.Errorf("unkown state")
 		}
 	}
+	return read, nil
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	request := &Request{
-		state: INITIALIZED,
+		State:   INITIALIZED,
+		Headers: headers.NewHeaders(),
 	}
 
 	readStart := 0
 	buffer := make([]byte, 1024)
-	for request.state != DONE {
+	for request.State != DONE {
 		buffLen, err := reader.Read(buffer[readStart:])
 		if err != nil {
 			return nil, err
