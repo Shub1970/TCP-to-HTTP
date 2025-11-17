@@ -31,7 +31,7 @@ func main() {
 		fmt.Printf("- Version: %s\n", request.RequestLine.HttpVersion)
 		fmt.Printf("Headers:\n")
 		for key, value := range request.Headers {
-			fmt.Printf("- %s:%s\n", key, value)
+			fmt.Printf("- %s: %s\n", key, value)
 		}
 
 	}

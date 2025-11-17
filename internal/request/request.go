@@ -75,7 +75,6 @@ func parseRequestLine(requestLine []byte) (*RequestLine, int, error) {
 
 func (r *Request) parse(data []byte) (int, error) {
 	read := 0
-outer:
 	for {
 		switch r.State {
 		case INITIALIZED:
@@ -84,30 +83,30 @@ outer:
 				return 0, err
 			}
 			if readLen == 0 {
-				return 0, nil
+				return read, nil
 			}
 			r.RequestLine = *requestLine
 			r.State = HEADERS
 			read += readLen
-			break outer
 		case HEADERS:
 			headerLen, done, err := r.Headers.Parse(data[read:])
-			fmt.Printf("header reading : %s\n", string(data[read:]))
 			if err != nil {
 				return 0, err
 			}
+			read += headerLen
 			if done {
 				r.State = DONE
+				return read, nil
 			}
-			read += headerLen
-			break outer
+			if headerLen == 0 {
+				return read, nil
+			}
 		case DONE:
 			return read, nil
 		default:
 			return 0, fmt.Errorf("unkown state")
 		}
 	}
-	return read, nil
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {

@@ -14,7 +14,7 @@ const CRLF = "\r\n"
 
 func fieldNameVerifier(name string) bool {
 	for _, ch := range name {
-		if ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z' {
+		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') {
 			continue
 		}
 
@@ -42,10 +42,11 @@ func (h Headers) Get(key string) (string, bool) {
 }
 
 func (h Headers) Set(key string, newValue string) {
-	if value, ok := h[key]; ok {
-		h[key] = fmt.Sprintf("%s,%s", value, newValue)
+	lowerKey := strings.ToLower(key)
+	if value, ok := h[lowerKey]; ok {
+		h[lowerKey] = fmt.Sprintf("%s,%s", value, newValue)
 	} else {
-		h[key] = newValue
+		h[lowerKey] = newValue
 	}
 }
 
@@ -56,7 +57,7 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		return 0, false, nil
 	}
 	if fieldLinePairIndex == 0 {
-		return 0, true, nil
+		return len(CRLF), true, nil
 	}
 	readLen += fieldLinePairIndex + len(CRLF)
 	// split around colon
@@ -71,7 +72,7 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		return 0, false, fmt.Errorf("invalid field name: %s", string(key))
 	}
 	key = bytes.ToLower(bytes.TrimSpace(key))
-	value := bytes.ToLower(bytes.TrimSpace(headerParts[1]))
+	value := bytes.TrimSpace(headerParts[1])
 	if !fieldNameVerifier(string(key)) {
 		return 0, false, fmt.Errorf("invalid field name verified: %s", string(key))
 	}
